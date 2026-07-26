@@ -1,0 +1,76 @@
+{
+    "name": "@tubinex/expo-game-services",
+    "version": "0.1.0",
+    "description": "Expo Game Center and Google Play Games Services integration.",
+    "main": "build/index.js",
+    "types": "build/index.d.ts",
+    "files": [
+        "android/build.gradle",
+        "android/src",
+        "ios",
+        "build",
+        "plugin",
+        "app.plugin.js",
+        "expo-module.config.json",
+        "README.md",
+        "LICENSE"
+    ],
+    "exports": {
+        ".": {
+            "types": "./build/index.d.ts",
+            "default": "./build/index.js"
+        },
+        "./plugin": "./app.plugin.js",
+        "./app.plugin.js": "./app.plugin.js",
+        "./package.json": "./package.json"
+    },
+    "scripts": {
+        "build": "expo-module build",
+        "clean": "expo-module clean",
+        "lint": "expo-module lint",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "test": "expo-module test --selectProjects Node",
+        "verify": "npm run format:check && npm run lint && npm run build && npm run test",
+        "prepack": "npm run build"
+    },
+    "keywords": [
+        "expo",
+        "expo-module",
+        "expo-config-plugin",
+        "react-native",
+        "ios",
+        "android",
+        "game-center",
+        "gamekit",
+        "google-play-games",
+        "play-games-services",
+        "achievements",
+        "leaderboards"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/tubinex/expo-game-services"
+    },
+    "license": "MIT",
+    "peerDependencies": {
+        "expo": ">=54.0.0",
+        "expo-modules-core": ">=2.0.0",
+        "react": ">=18.0.0",
+        "react-native": ">=0.76.0"
+    },
+    "dependencies": {
+        "@expo/config-plugins": "^54.0.0"
+    },
+    "devDependencies": {
+        "expo-module-scripts": "^5.0.0",
+        "prettier": "2.8.8",
+        "typescript": "~6.0.0"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "jest": {
+        "preset": "expo-module-scripts"
+    }
+}

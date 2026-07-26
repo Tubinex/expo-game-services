@@ -1,0 +1,18 @@
+{
+    "expo": {
+        "name": "Expo Game Services Example",
+        "slug": "expo-game-services-example",
+        "plugins": [
+            [
+                "@tubinex/expo-game-services",
+                {
+                    "ios": { "enabled": true },
+                    "android": {
+                        "enabled": true,
+                        "playGamesAppId": "123456789012"
+                    }
+                }
+            ]
+        ]
+    }
+}
