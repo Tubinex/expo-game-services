@@ -32,7 +32,8 @@
         "format:check": "prettier --check .",
         "test": "expo-module test --selectProjects Node",
         "verify": "npm run format:check && npm run lint && npm run build && npm run test",
-        "prepack": "npm run build"
+        "prepack": "npm run build",
+        "prepare": "npm run build"
     },
     "keywords": [
         "expo",
