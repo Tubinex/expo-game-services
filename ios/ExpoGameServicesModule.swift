@@ -2,12 +2,12 @@ import ExpoModulesCore
 import GameKit
 import UIKit
 
-final class ExpoGameServicesModule: Module {
+public final class ExpoGameServicesModule: Module {
   private let presenter = GameCenterPresenter.shared
   private var authenticationHandlerInstalled = false
   private var pendingSignInPromises: [Promise] = []
 
-  func definition() -> ModuleDefinition {
+  public func definition() -> ModuleDefinition {
     Name("ExpoGameServices")
 
     Events("onAuthenticationStateChanged")
