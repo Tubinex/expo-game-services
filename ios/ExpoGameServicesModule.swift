@@ -48,19 +48,19 @@ final class ExpoGameServicesModule: Module {
       ]
     }
 
-    AsyncFunction("requestServerIdentityProof") { (_: [String: Any], promise: Promise) in
+    AsyncFunction("requestServerIdentityProof") { (_: JavaScriptValue, promise: Promise) in
       guard GKLocalPlayer.local.isAuthenticated else {
-        promise.reject("NOT_AUTHENTICATED", "Game Center authentication is required.", nil)
+        promise.reject("NOT_AUTHENTICATED", "Game Center authentication is required.")
         return
       }
 
       GKLocalPlayer.local.generateIdentityVerificationSignature { publicKeyURL, signature, salt, timestamp, error in
         if let error {
-          promise.reject("PROVIDER_ERROR", "Could not create a Game Center identity proof.", error)
+          promise.reject("PROVIDER_ERROR", "Could not create a Game Center identity proof.")
           return
         }
         guard let publicKeyURL, let signature, let salt else {
-          promise.reject("PROVIDER_ERROR", "Game Center did not return an identity proof.", nil)
+          promise.reject("PROVIDER_ERROR", "Game Center did not return an identity proof.")
           return
         }
         promise.resolve([
@@ -77,12 +77,12 @@ final class ExpoGameServicesModule: Module {
     AsyncFunction("loadAchievements") { (promise: Promise) in
       GKAchievementDescription.loadAchievementDescriptions { descriptions, descriptionError in
         if let descriptionError {
-          promise.reject("PROVIDER_ERROR", "Could not load Game Center achievement descriptions.", descriptionError)
+          promise.reject("PROVIDER_ERROR", "Could not load Game Center achievement descriptions.")
           return
         }
         GKAchievement.loadAchievements { achievements, achievementError in
           if let achievementError {
-            promise.reject("PROVIDER_ERROR", "Could not load Game Center achievements.", achievementError)
+            promise.reject("PROVIDER_ERROR", "Could not load Game Center achievements.")
             return
           }
           let progressByID = Dictionary(uniqueKeysWithValues: (achievements ?? []).map { ($0.identifier, $0) })
@@ -104,7 +104,7 @@ final class ExpoGameServicesModule: Module {
 
     AsyncFunction("reportAchievement") { (achievementID: String, percentComplete: Double, promise: Promise) in
       guard GKLocalPlayer.local.isAuthenticated else {
-        promise.reject("NOT_AUTHENTICATED", "Game Center authentication is required.", nil)
+        promise.reject("NOT_AUTHENTICATED", "Game Center authentication is required.")
         return
       }
       let achievement = GKAchievement(identifier: achievementID)
@@ -112,7 +112,7 @@ final class ExpoGameServicesModule: Module {
       achievement.showsCompletionBanner = true
       GKAchievement.report([achievement]) { error in
         if let error {
-          promise.reject("PROVIDER_ERROR", "Could not report the Game Center achievement.", error)
+          promise.reject("PROVIDER_ERROR", "Could not report the Game Center achievement.")
         } else {
           promise.resolve()
         }
@@ -120,7 +120,7 @@ final class ExpoGameServicesModule: Module {
     }
 
     AsyncFunction("incrementAchievement") { (_: String, _: Int, promise: Promise) in
-      promise.reject("FEATURE_UNSUPPORTED", "Game Center does not support step-based achievement increments.", nil)
+      promise.reject("FEATURE_UNSUPPORTED", "Game Center does not support step-based achievement increments.")
     }
 
     AsyncFunction("showAchievements") { (promise: Promise) in
@@ -130,7 +130,7 @@ final class ExpoGameServicesModule: Module {
     AsyncFunction("loadLeaderboardMetadata") { (identifiers: [String]?, promise: Promise) in
       GKLeaderboard.loadLeaderboards(IDs: identifiers) { leaderboards, error in
         if let error {
-          promise.reject("PROVIDER_ERROR", "Could not load Game Center leaderboards.", error)
+          promise.reject("PROVIDER_ERROR", "Could not load Game Center leaderboards.")
           return
         }
         promise.resolve((leaderboards ?? []).map {
@@ -149,7 +149,7 @@ final class ExpoGameServicesModule: Module {
 
     AsyncFunction("submitLeaderboardScore") { (leaderboardID: String, score: Int, context: String?, promise: Promise) in
       guard GKLocalPlayer.local.isAuthenticated else {
-        promise.reject("NOT_AUTHENTICATED", "Game Center authentication is required.", nil)
+        promise.reject("NOT_AUTHENTICATED", "Game Center authentication is required.")
         return
       }
       let gameScore = GKScore(leaderboardIdentifier: leaderboardID)
@@ -157,7 +157,7 @@ final class ExpoGameServicesModule: Module {
       gameScore.context = UInt64(context ?? "") ?? 0
       GKScore.report([gameScore]) { error in
         if let error {
-          promise.reject("PROVIDER_ERROR", "Could not submit the Game Center score.", error)
+          promise.reject("PROVIDER_ERROR", "Could not submit the Game Center score.")
         } else {
           promise.resolve()
         }
@@ -202,7 +202,7 @@ final class ExpoGameServicesModule: Module {
     let promises = pendingSignInPromises
     pendingSignInPromises.removeAll()
     for promise in promises {
-      promise.reject("PROVIDER_ERROR", "Game Center sign-in failed.", error)
+      promise.reject("PROVIDER_ERROR", "Game Center sign-in failed.")
     }
   }
 
@@ -224,36 +224,45 @@ final class ExpoGameServicesModule: Module {
 
   private func loadLeaderboardScores(request: [String: Any], currentPlayerOnly: Bool, promise: Promise) {
     guard let leaderboardID = request["leaderboardId"] as? String else {
-      promise.reject("INVALID_ARGUMENT", "leaderboardId is required.", nil)
+      promise.reject("INVALID_ARGUMENT", "leaderboardId is required.")
       return
     }
-    let leaderboard = GKLeaderboard(identifier: leaderboardID)
-    let position = max((request["position"] as? Int ?? 1) - 1, 0)
-    let range = max(request["range"] as? Int ?? 25, 1)
-    leaderboard.loadEntries(
-      for: self.playerScope(request["collection"] as? String),
-      timeScope: self.timeScope(request["timeScope"] as? String),
-      range: NSRange(location: position, length: range)
-    ) { localPlayerEntry, entries, error in
-      if let error {
-        promise.reject("PROVIDER_ERROR", "Could not load Game Center leaderboard scores.", error)
+    GKLeaderboard.loadLeaderboards(IDs: [leaderboardID]) { leaderboards, loadError in
+      if let loadError {
+        promise.reject("PROVIDER_ERROR", "Could not load Game Center leaderboard scores.")
         return
       }
-      let selectedEntries = currentPlayerOnly ? (localPlayerEntry.map { [$0] } ?? []) : (entries ?? [])
-      let response = selectedEntries.map { entry -> [String: Any] in
-        [
-          "leaderboardId": leaderboardID,
-          "rank": entry.rank,
-          "score": entry.score,
-          "formattedScore": entry.formattedScore,
-          "player": ["id": entry.player.gamePlayerID, "displayName": entry.player.displayName, "alias": entry.player.alias],
-          "timestamp": Self.isoDate(entry.date),
-        ]
+      guard let leaderboard = leaderboards?.first else {
+        promise.reject("PROVIDER_ERROR", "Game Center did not return the requested leaderboard.")
+        return
       }
-      promise.resolve([
-        "leaderboard": ["id": leaderboardID, "title": leaderboard.title ?? leaderboardID, "sortOrder": "descending"],
-        "scores": response,
-      ])
+      let position = max((request["position"] as? Int ?? 1) - 1, 0)
+      let range = max(request["range"] as? Int ?? 25, 1)
+      leaderboard.loadEntries(
+        for: self.playerScope(request["collection"] as? String),
+        timeScope: self.timeScope(request["timeScope"] as? String),
+        range: NSRange(location: position, length: range)
+      ) { localPlayerEntry, entries, _, error in
+        if let error {
+          promise.reject("PROVIDER_ERROR", "Could not load Game Center leaderboard scores.")
+          return
+        }
+        let selectedEntries = currentPlayerOnly ? (localPlayerEntry.map { [$0] } ?? []) : (entries ?? [])
+        let response = selectedEntries.map { entry -> [String: Any] in
+          [
+            "leaderboardId": leaderboardID,
+            "rank": entry.rank,
+            "score": entry.score,
+            "formattedScore": entry.formattedScore,
+            "player": ["id": entry.player.gamePlayerID, "displayName": entry.player.displayName, "alias": entry.player.alias],
+            "timestamp": Self.isoDate(entry.date),
+          ]
+        }
+        promise.resolve([
+          "leaderboard": ["id": leaderboardID, "title": leaderboard.title ?? leaderboardID, "sortOrder": "descending"],
+          "scores": response,
+        ])
+      }
     }
   }
 
@@ -281,17 +290,17 @@ private final class GameCenterPresenter: NSObject, GKGameCenterControllerDelegat
   private(set) var isPresentingAuthentication = false
 
   func presentAuthentication(_ viewController: UIViewController) {
-    DispatchQueue.main.async {
+    DispatchQueue.main.async(execute: {
       guard let presenter = self.topViewController(), presenter.presentedViewController == nil else { return }
       self.isPresentingAuthentication = true
       presenter.present(viewController, animated: true)
-    }
+    })
   }
 
   func finishAuthenticationPresentation() {
-    DispatchQueue.main.async {
+    DispatchQueue.main.async(execute: {
       self.isPresentingAuthentication = false
-    }
+    })
   }
 
   func showAchievements(promise: Promise) {
@@ -313,15 +322,15 @@ private final class GameCenterPresenter: NSObject, GKGameCenterControllerDelegat
   }
 
   private func present(_ controller: GKGameCenterViewController, promise: Promise) {
-    DispatchQueue.main.async {
+    DispatchQueue.main.async(execute: {
       guard self.dismissPromise == nil, let presenter = self.topViewController(), presenter.presentedViewController == nil else {
-        promise.reject("PRESENTATION_BUSY", "Another native view controller is already presented.", nil)
+        promise.reject("PRESENTATION_BUSY", "Another native view controller is already presented.")
         return
       }
       self.dismissPromise = promise
       controller.gameCenterDelegate = self
       presenter.present(controller, animated: true)
-    }
+    })
   }
 
   private func topViewController() -> UIViewController? {
