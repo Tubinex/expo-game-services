@@ -2,17 +2,17 @@ export type GameServicesPlatform = 'gameCenter' | 'playGames';
 
 export type AuthenticationState =
     | {
-        status: 'unavailable';
-        platform: GameServicesPlatform | null;
-        reason: string;
-    }
+          status: 'unavailable';
+          platform: GameServicesPlatform | null;
+          reason: string;
+      }
     | { status: 'unauthenticated'; platform: GameServicesPlatform }
     | { status: 'authenticating'; platform: GameServicesPlatform }
     | {
-        status: 'authenticated';
-        platform: GameServicesPlatform;
-        player: GameServicesPlayer;
-    };
+          status: 'authenticated';
+          platform: GameServicesPlatform;
+          player: GameServicesPlayer;
+      };
 
 export type GameServicesPlayer = {
     id: string;

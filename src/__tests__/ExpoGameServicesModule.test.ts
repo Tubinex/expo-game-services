@@ -6,7 +6,7 @@ jest.mock('expo-modules-core', () => ({
 }));
 
 jest.mock('react-native', () => ({
-    NativeEventEmitter: class { },
+    NativeEventEmitter: class {},
 }));
 
 describe('native module guard', () => {

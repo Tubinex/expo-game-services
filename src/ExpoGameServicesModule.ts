@@ -57,7 +57,7 @@ export function callNativeGameServices<T>(call: (module: NativeGameServicesModul
 
 export function addNativeAuthenticationListener(listener: (state: AuthenticationState) => void): EmitterSubscription {
     if (!emitter) {
-        return { remove() { } } as EmitterSubscription;
+        return { remove() {} } as EmitterSubscription;
     }
     return emitter.addListener('onAuthenticationStateChanged', listener);
 }

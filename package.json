@@ -1,6 +1,6 @@
 {
     "name": "@tubinex/expo-game-services",
-    "version": "0.1.0",
+    "version": "0.0.1",
     "description": "Expo Game Center and Google Play Games Services integration.",
     "main": "build/index.js",
     "types": "build/index.d.ts",
@@ -33,7 +33,10 @@
         "test": "expo-module test --selectProjects Node",
         "verify": "npm run format:check && npm run lint && npm run build && npm run test",
         "prepack": "npm run build",
-        "prepare": "npm run build"
+        "prepare": "npm run build",
+        "release:patch": "npm version patch && npm publish",
+        "release:minor": "npm version minor && npm publish",
+        "release:major": "npm version major && npm publish"
     },
     "keywords": [
         "expo",

@@ -16,5 +16,5 @@ export type {
     LeaderboardUIOptions,
     PlayGamesServerAuthCode,
     ServerIdentityProof,
-    Subscription
+    Subscription,
 } from './types';
