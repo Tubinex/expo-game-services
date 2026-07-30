@@ -67,6 +67,8 @@ public final class ExpoGameServicesModule: Module {
         promise.resolve([
           "type": "gameCenterIdentitySignature",
           "playerId": GKLocalPlayer.local.gamePlayerID,
+          "gamePlayerId": GKLocalPlayer.local.gamePlayerID,
+          "teamPlayerId": GKLocalPlayer.local.teamPlayerID,
           "publicKeyUrl": publicKeyURL.absoluteString,
           "signature": signature.base64EncodedString(),
           "salt": salt.base64EncodedString(),

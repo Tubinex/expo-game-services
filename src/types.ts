@@ -35,6 +35,8 @@ export type GameServicesCapabilities = {
 export type GameCenterIdentitySignature = {
     type: 'gameCenterIdentitySignature';
     playerId: string;
+    gamePlayerId?: string;
+    teamPlayerId?: string;
     publicKeyUrl: string;
     signature: string;
     salt: string;
