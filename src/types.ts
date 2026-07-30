@@ -37,6 +37,7 @@ export type GameCenterIdentitySignature = {
     playerId: string;
     gamePlayerId?: string;
     teamPlayerId?: string;
+    legacyPlayerId?: string;
     publicKeyUrl: string;
     signature: string;
     salt: string;

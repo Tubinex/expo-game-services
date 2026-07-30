@@ -54,7 +54,7 @@ public final class ExpoGameServicesModule: Module {
         return
       }
 
-      GKLocalPlayer.local.generateIdentityVerificationSignature { publicKeyURL, signature, salt, timestamp, error in
+      GKLocalPlayer.local.fetchItems { publicKeyURL, signature, salt, timestamp, error in
         if let error {
           NSLog("ExpoGameServices Game Center identity proof failed: %@", error.localizedDescription)
           promise.reject("PROVIDER_ERROR", "Could not create a Game Center identity proof: \(error.localizedDescription)")
@@ -69,6 +69,7 @@ public final class ExpoGameServicesModule: Module {
           "playerId": GKLocalPlayer.local.gamePlayerID,
           "gamePlayerId": GKLocalPlayer.local.gamePlayerID,
           "teamPlayerId": GKLocalPlayer.local.teamPlayerID,
+          "legacyPlayerId": GKLocalPlayer.local.playerID,
           "publicKeyUrl": publicKeyURL.absoluteString,
           "signature": signature.base64EncodedString(),
           "salt": salt.base64EncodedString(),
