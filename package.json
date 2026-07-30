@@ -1,6 +1,6 @@
 {
     "name": "@tubinex/expo-game-services",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "Expo Game Center and Google Play Games Services integration.",
     "main": "build/index.js",
     "types": "build/index.d.ts",
