@@ -56,7 +56,7 @@ public final class ExpoGameServicesModule: Module {
 
       GKLocalPlayer.local.generateIdentityVerificationSignature { publicKeyURL, signature, salt, timestamp, error in
         if let error {
-          promise.reject("PROVIDER_ERROR", "Could not create a Game Center identity proof.")
+          promise.reject("PROVIDER_ERROR", "Could not create a Game Center identity proof: \(error.localizedDescription)")
           return
         }
         guard let publicKeyURL, let signature, let salt else {
@@ -181,7 +181,7 @@ public final class ExpoGameServicesModule: Module {
       if GKLocalPlayer.local.isAuthenticated {
         self?.resolvePendingSignIns()
       } else if let error {
-        self?.rejectPendingSignIns(error)
+        self?.resolvePendingSignIns(state: Self.unavailableState(reason: error.localizedDescription))
       } else {
         self?.resolvePendingSignIns()
       }
@@ -189,20 +189,12 @@ public final class ExpoGameServicesModule: Module {
     }
   }
 
-  private func resolvePendingSignIns() {
-    let state = authenticationState()
+  private func resolvePendingSignIns(state: [String: Any]? = nil) {
+    let state = state ?? authenticationState()
     let promises = pendingSignInPromises
     pendingSignInPromises.removeAll()
     for promise in promises {
       promise.resolve(state)
-    }
-  }
-
-  private func rejectPendingSignIns(_ error: Error) {
-    let promises = pendingSignInPromises
-    pendingSignInPromises.removeAll()
-    for promise in promises {
-      promise.reject("PROVIDER_ERROR", "Game Center sign-in failed.")
     }
   }
 
@@ -218,8 +210,8 @@ public final class ExpoGameServicesModule: Module {
     ]
   }
 
-  private static func unavailableState() -> [String: Any] {
-    ["status": "unavailable", "platform": "gameCenter", "reason": "Game Center is unavailable."]
+  private static func unavailableState(reason: String = "Game Center is unavailable.") -> [String: Any] {
+    ["status": "unavailable", "platform": "gameCenter", "reason": reason]
   }
 
   private func loadLeaderboardScores(request: [String: Any], currentPlayerOnly: Bool, promise: Promise) {
