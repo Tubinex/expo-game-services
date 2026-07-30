@@ -56,6 +56,7 @@ public final class ExpoGameServicesModule: Module {
 
       GKLocalPlayer.local.generateIdentityVerificationSignature { publicKeyURL, signature, salt, timestamp, error in
         if let error {
+          NSLog("ExpoGameServices Game Center identity proof failed: %@", error.localizedDescription)
           promise.reject("PROVIDER_ERROR", "Could not create a Game Center identity proof: \(error.localizedDescription)")
           return
         }
@@ -181,6 +182,7 @@ public final class ExpoGameServicesModule: Module {
       if GKLocalPlayer.local.isAuthenticated {
         self?.resolvePendingSignIns()
       } else if let error {
+        NSLog("ExpoGameServices Game Center sign-in failed: %@", error.localizedDescription)
         self?.resolvePendingSignIns(state: Self.unavailableState(reason: error.localizedDescription))
       } else {
         self?.resolvePendingSignIns()
