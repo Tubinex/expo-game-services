@@ -2,6 +2,44 @@ import ExpoModulesCore
 import GameKit
 import UIKit
 
+private final class GameServicesException: Exception, @unchecked Sendable {
+  private let failureReason: String
+
+  init(
+    _ code: String,
+    _ message: String,
+    cause: Error? = nil,
+    file: String = #fileID,
+    line: UInt = #line,
+    function: String = #function
+  ) {
+    failureReason = Self.compose(message, cause)
+    super.init(name: code, description: failureReason, code: code, file: file, line: line, function: function)
+  }
+
+  override var reason: String {
+    failureReason
+  }
+
+  override var debugDescription: String {
+    failureReason
+  }
+
+  private static func compose(_ message: String, _ cause: Error?) -> String {
+    guard let cause else { return message }
+    let error = cause as NSError
+    return "\(message) \(error.domain) \(error.code): \(error.localizedDescription)"
+  }
+}
+
+private func reject(_ promise: Promise, _ code: String, _ message: String) {
+  promise.reject(GameServicesException(code, message))
+}
+
+private func rejectProviderError(_ promise: Promise, _ message: String, _ cause: Error?) {
+  promise.reject(GameServicesException("PROVIDER_ERROR", message, cause: cause))
+}
+
 public final class ExpoGameServicesModule: Module {
   private let presenter = GameCenterPresenter.shared
   private var authenticationHandlerInstalled = false
@@ -50,18 +88,18 @@ public final class ExpoGameServicesModule: Module {
 
     AsyncFunction("requestServerIdentityProof") { (_: JavaScriptValue, promise: Promise) in
       guard GKLocalPlayer.local.isAuthenticated else {
-        promise.reject("NOT_AUTHENTICATED", "Game Center authentication is required.")
+        reject(promise, "NOT_AUTHENTICATED", "Game Center authentication is required.")
         return
       }
 
       GKLocalPlayer.local.fetchItems { publicKeyURL, signature, salt, timestamp, error in
         if let error {
           NSLog("ExpoGameServices Game Center identity proof failed: %@", error.localizedDescription)
-          promise.reject("PROVIDER_ERROR", "Could not create a Game Center identity proof: \(error.localizedDescription)")
+          rejectProviderError(promise, "Could not create a Game Center identity proof.", error)
           return
         }
         guard let publicKeyURL, let signature, let salt else {
-          promise.reject("PROVIDER_ERROR", "Game Center did not return an identity proof.")
+          rejectProviderError(promise, "Game Center did not return an identity proof.", nil)
           return
         }
         promise.resolve([
@@ -81,12 +119,12 @@ public final class ExpoGameServicesModule: Module {
     AsyncFunction("loadAchievements") { (promise: Promise) in
       GKAchievementDescription.loadAchievementDescriptions { descriptions, descriptionError in
         if let descriptionError {
-          promise.reject("PROVIDER_ERROR", "Could not load Game Center achievement descriptions.")
+          rejectProviderError(promise, "Could not load Game Center achievement descriptions.", descriptionError)
           return
         }
         GKAchievement.loadAchievements { achievements, achievementError in
           if let achievementError {
-            promise.reject("PROVIDER_ERROR", "Could not load Game Center achievements.")
+            rejectProviderError(promise, "Could not load Game Center achievements.", achievementError)
             return
           }
           let progressByID = Dictionary(uniqueKeysWithValues: (achievements ?? []).map { ($0.identifier, $0) })
@@ -108,7 +146,7 @@ public final class ExpoGameServicesModule: Module {
 
     AsyncFunction("reportAchievement") { (achievementID: String, percentComplete: Double, promise: Promise) in
       guard GKLocalPlayer.local.isAuthenticated else {
-        promise.reject("NOT_AUTHENTICATED", "Game Center authentication is required.")
+        reject(promise, "NOT_AUTHENTICATED", "Game Center authentication is required.")
         return
       }
       let achievement = GKAchievement(identifier: achievementID)
@@ -116,7 +154,7 @@ public final class ExpoGameServicesModule: Module {
       achievement.showsCompletionBanner = true
       GKAchievement.report([achievement]) { error in
         if let error {
-          promise.reject("PROVIDER_ERROR", "Could not report the Game Center achievement.")
+          rejectProviderError(promise, "Could not report the Game Center achievement.", error)
         } else {
           promise.resolve()
         }
@@ -124,7 +162,7 @@ public final class ExpoGameServicesModule: Module {
     }
 
     AsyncFunction("incrementAchievement") { (_: String, _: Int, promise: Promise) in
-      promise.reject("FEATURE_UNSUPPORTED", "Game Center does not support step-based achievement increments.")
+      reject(promise, "FEATURE_UNSUPPORTED", "Game Center does not support step-based achievement increments.")
     }
 
     AsyncFunction("showAchievements") { (promise: Promise) in
@@ -134,7 +172,7 @@ public final class ExpoGameServicesModule: Module {
     AsyncFunction("loadLeaderboardMetadata") { (identifiers: [String]?, promise: Promise) in
       GKLeaderboard.loadLeaderboards(IDs: identifiers) { leaderboards, error in
         if let error {
-          promise.reject("PROVIDER_ERROR", "Could not load Game Center leaderboards.")
+          rejectProviderError(promise, "Could not load Game Center leaderboards.", error)
           return
         }
         promise.resolve((leaderboards ?? []).map {
@@ -153,7 +191,7 @@ public final class ExpoGameServicesModule: Module {
 
     AsyncFunction("submitLeaderboardScore") { (leaderboardID: String, score: Int, context: String?, promise: Promise) in
       guard GKLocalPlayer.local.isAuthenticated else {
-        promise.reject("NOT_AUTHENTICATED", "Game Center authentication is required.")
+        reject(promise, "NOT_AUTHENTICATED", "Game Center authentication is required.")
         return
       }
       let gameScore = GKScore(leaderboardIdentifier: leaderboardID)
@@ -161,7 +199,7 @@ public final class ExpoGameServicesModule: Module {
       gameScore.context = UInt64(context ?? "") ?? 0
       GKScore.report([gameScore]) { error in
         if let error {
-          promise.reject("PROVIDER_ERROR", "Could not submit the Game Center score.")
+          rejectProviderError(promise, "Could not submit the Game Center score.", error)
         } else {
           promise.resolve()
         }
@@ -221,16 +259,16 @@ public final class ExpoGameServicesModule: Module {
 
   private func loadLeaderboardScores(request: [String: Any], currentPlayerOnly: Bool, promise: Promise) {
     guard let leaderboardID = request["leaderboardId"] as? String else {
-      promise.reject("INVALID_ARGUMENT", "leaderboardId is required.")
+      reject(promise, "INVALID_ARGUMENT", "leaderboardId is required.")
       return
     }
     GKLeaderboard.loadLeaderboards(IDs: [leaderboardID]) { leaderboards, loadError in
       if let loadError {
-        promise.reject("PROVIDER_ERROR", "Could not load Game Center leaderboard scores.")
+        rejectProviderError(promise, "Could not load Game Center leaderboard scores.", loadError)
         return
       }
       guard let leaderboard = leaderboards?.first else {
-        promise.reject("PROVIDER_ERROR", "Game Center did not return the requested leaderboard.")
+        rejectProviderError(promise, "Game Center did not return the requested leaderboard.", nil)
         return
       }
       let position = max((request["position"] as? Int ?? 1) - 1, 0)
@@ -241,7 +279,7 @@ public final class ExpoGameServicesModule: Module {
         range: NSRange(location: position, length: range)
       ) { localPlayerEntry, entries, _, error in
         if let error {
-          promise.reject("PROVIDER_ERROR", "Could not load Game Center leaderboard scores.")
+          rejectProviderError(promise, "Could not load Game Center leaderboard scores.", error)
           return
         }
         let selectedEntries = currentPlayerOnly ? (localPlayerEntry.map { [$0] } ?? []) : (entries ?? [])
@@ -321,7 +359,7 @@ private final class GameCenterPresenter: NSObject, GKGameCenterControllerDelegat
   private func present(_ controller: GKGameCenterViewController, promise: Promise) {
     DispatchQueue.main.async(execute: {
       guard self.dismissPromise == nil, let presenter = self.topViewController(), presenter.presentedViewController == nil else {
-        promise.reject("PRESENTATION_BUSY", "Another native view controller is already presented.")
+        reject(promise, "PRESENTATION_BUSY", "Another native view controller is already presented.")
         return
       }
       self.dismissPromise = promise

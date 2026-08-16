@@ -25,6 +25,6 @@ export class GameServicesError extends Error {
 export function unavailableError(): GameServicesError {
     return new GameServicesError(
         'native-module-unavailable',
-        'Game Services requires a development client or store build.',
+        'Game Services requires a development, EAS, or store build.',
     );
 }
