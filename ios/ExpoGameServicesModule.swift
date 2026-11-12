@@ -65,12 +65,17 @@ public final class ExpoGameServicesModule: Module {
         return
       }
       self.pendingSignInPromises.append(promise)
-      if !self.presenter.isPresentingAuthentication {
-        self.authenticationHandlerInstalled = false
-        GKLocalPlayer.local.authenticateHandler = nil
-        self.installAuthenticationHandler()
+      if self.presenter.isPresentingAuthentication { return }
+      if self.presenter.hasPendingAuthentication {
+        if !self.presenter.presentPendingAuthentication() {
+          self.resolvePendingSignIns()
+        }
+        return
       }
-    }
+      self.authenticationHandlerInstalled = false
+      GKLocalPlayer.local.authenticateHandler = nil
+      self.installAuthenticationHandler()
+    }.runOnQueue(.main)
 
     AsyncFunction("getCapabilities") { () -> [String: Any] in
       [
@@ -215,21 +220,29 @@ public final class ExpoGameServicesModule: Module {
     guard !authenticationHandlerInstalled else { return }
     authenticationHandlerInstalled = true
     GKLocalPlayer.local.authenticateHandler = { [weak self] viewController, error in
-      if let viewController {
-        self?.presenter.presentAuthentication(viewController)
-        return
+      DispatchQueue.main.async {
+        self?.handleAuthentication(viewController: viewController, error: error)
       }
-      self?.presenter.finishAuthenticationPresentation()
-      if GKLocalPlayer.local.isAuthenticated {
-        self?.resolvePendingSignIns()
-      } else if let error {
-        NSLog("ExpoGameServices Game Center sign-in failed: %@", error.localizedDescription)
-        self?.resolvePendingSignIns(state: Self.unavailableState(reason: error.localizedDescription))
-      } else {
-        self?.resolvePendingSignIns()
-      }
-      self?.sendEvent("onAuthenticationStateChanged", self?.authenticationState() ?? Self.unavailableState())
     }
+  }
+
+  private func handleAuthentication(viewController: UIViewController?, error: Error?) {
+    if let viewController {
+      if !presenter.presentAuthentication(viewController) {
+        resolvePendingSignIns()
+      }
+      return
+    }
+    presenter.finishAuthenticationPresentation()
+    if GKLocalPlayer.local.isAuthenticated {
+      resolvePendingSignIns()
+    } else if let error {
+      NSLog("ExpoGameServices Game Center sign-in failed: %@", error.localizedDescription)
+      resolvePendingSignIns(state: Self.unavailableState(reason: error.localizedDescription))
+    } else {
+      resolvePendingSignIns()
+    }
+    sendEvent("onAuthenticationStateChanged", authenticationState())
   }
 
   private func resolvePendingSignIns(state: [String: Any]? = nil) {
@@ -322,20 +335,32 @@ public final class ExpoGameServicesModule: Module {
 private final class GameCenterPresenter: NSObject, GKGameCenterControllerDelegate {
   static let shared = GameCenterPresenter()
   private var dismissPromise: Promise?
+  private var pendingAuthentication: UIViewController?
   private(set) var isPresentingAuthentication = false
 
-  func presentAuthentication(_ viewController: UIViewController) {
-    DispatchQueue.main.async(execute: {
-      guard let presenter = self.topViewController(), presenter.presentedViewController == nil else { return }
-      self.isPresentingAuthentication = true
-      presenter.present(viewController, animated: true)
-    })
+  var hasPendingAuthentication: Bool {
+    pendingAuthentication != nil
+  }
+
+  func presentAuthentication(_ viewController: UIViewController) -> Bool {
+    guard let presenter = topViewController(), presenter.presentedViewController == nil else {
+      pendingAuthentication = viewController
+      return false
+    }
+    pendingAuthentication = nil
+    isPresentingAuthentication = true
+    presenter.present(viewController, animated: true)
+    return true
+  }
+
+  func presentPendingAuthentication() -> Bool {
+    guard let viewController = pendingAuthentication else { return false }
+    return presentAuthentication(viewController)
   }
 
   func finishAuthenticationPresentation() {
-    DispatchQueue.main.async(execute: {
-      self.isPresentingAuthentication = false
-    })
+    pendingAuthentication = nil
+    isPresentingAuthentication = false
   }
 
   func showAchievements(promise: Promise) {
